@@ -15,12 +15,12 @@ class QuotesSpider(scrapy.Spider):
             yield scrapy.Request(url=url, callback=self.parse)
 
     def parse(self, response):     
-        for quote in response.css("div.quote"):
+        for quote in response.xpath(".//div[@class='quote']"):
             yield {
-                "text": quote.css("span.text::text").get(),     #extracting quotes
-                "author": quote.css("small.author::text").get(),        #extracting authors
-                "tags": quote.css("div.tags a.tag::text").getall(),        #extracting tags
+                "text": quote.xpath(".//span[@class='text']/text()").get(),     #extracting quotes
+                "author": quote.xpath(".//small[@class='author']/text()").get(),        #extracting authors
+                "tags": quote.xpath(".//div[@class='tags']//a[@class='tag']/text()").getall(),        #extracting tags
             }
-        next_page = response.css("li.next a::attr(href)").get()   #following links to next page
+        next_page = response.xpath(".//li[@class='next']/a/@href").get()   #following links to next page
         if next_page is not None:
             yield response.follow(next_page, callback=self.parse)      #response.follow directly follow the link without the urljoin
