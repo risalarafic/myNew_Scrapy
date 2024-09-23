@@ -1,20 +1,24 @@
 import scrapy
 import json
+import re
+import math
 
 class ProfileSpider(scrapy.Spider):
     name = "profile_spider"
-    current_page = 1
+    
+    def __init__(self):
+        self.current_page = 1
+        self.page_size = 10
 
     
     #def start_requests(self):
-        # Starting URL or API endpoint to make the AJAX request
        # url = 'https://www.bhhsamb.com/CMS/CmsRoster/RosterSearchResults?layoutID=963&pageSize=10&pageNumber=1&sortBy=random'
        # yield scrapy.Request(url, callback=self.parse)
     def start_requests(self):
    
-        url = 'https://www.bhhsamb.com/CMS/CmsRoster/RosterSearchResults?layoutID=963&pageSize=10&pageNumber=1&sortBy=random'
+        url = f'https://www.bhhsamb.com/CMS/CmsRoster/RosterSearchResults?layoutID=963&pageSize={self.page_size}&pageNumber={self.current_page}&sortBy=random'
     
-    # headers
+    
         headers = {
         #'Accept': 'application/json, text/javascript, /; q=0.01',
         #'Accept-Encoding': 'gzip, deflate, br, zstd',
@@ -29,49 +33,80 @@ class ProfileSpider(scrapy.Spider):
             'Sec-Fetch-Dest': 'empty',
         #'Sec-Fetch-Mode': 'cors',
         #'Sec-Fetch-Site': 'same-origin',
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+            #Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36
             'X-Requested-With': 'XMLHttpRequest'
+
         }
 
         yield scrapy.Request(url, headers=headers, callback=self.parse)
         
     def parse(self, response):
-        #print(response.json())
-        print(type(response.json()))
-        response_dict = json.loads(response.json())
+        #print(response.json()) 
+        print(type(response.json()))         #converting to pure json byb removing the ///rn
+        response_dict = json.loads(response.json()) #response in dictionary form have doubt response.json and response_dict are same
         #print(response_dict)
-        print(type(response.json()))
+        print(type(response_dict))          #<class 'dict'>
         html_content = response_dict.get('Html')
         total_count = response_dict.get('TotalCount')
-        if cureentpage!= total_count:
-            start_requests         #need to increment the  current page 
-        print("hhhhhhhhhhh")
         print(total_count)
-        #print(html_content)
+        print(html_content)
         
         
         selector = scrapy.Selector(text=html_content)
-        print("hiiiii")
+        print(type(selector))
         print(selector)
-        
+        #type of selector
         # Extract all profile links
         profile_links = selector.xpath('//a[contains(@class, "site-roster-card-image-link")]/@href').getall()
-        #print(profile_links)
-        print(len(profile_links))
-
+        print(profile_links)
+        print(len(profile_links)) #number of links in each page (10)
         # each profile page
         for link in profile_links:
             print(link)
             full_url = 'https://www.bhhsamb.com' + link  # Create the full URL 
             yield scrapy.Request(full_url, callback=self.parse_profile)
-            
+
+        no_pages = math.ceil(total_count / self.page_size)
+        print(self.page_size)
+        print(no_pages)
+        if self.current_page <= no_pages:   
+            self.current_page += 1           #need to increment the  current page
+            next_url = f'https://www.bhhsamb.com/CMS/CmsRoster/RosterSearchResults?layoutID=963&pageSize={self.page_size}&pageNumber={self.current_page}&sortBy=random'
+            yield scrapy.Request(next_url, callback=self.parse)        
+          
     
     def parse_profile(self, response):
        
-        profile_name = response.xpath('//p[@class="rng-agent-profile-contact-name"]/text()').get()
-        phone_number = response.xpath('//a[contains(@href, "tel:")]/text()').get()
+        profile_name = response.xpath('//p[@class="rng-agent-profile-contact-name"]/text()').get().strip()
+        job_title = response.xpath('//span[@class="rng-agent-profile-contact-title"]/text()').get()
+        image_url = response.xpath('//img[@class="rng-agent-profile-photo"]/@src').get()
+        address = response.xpath('string(//li[@class="rng-agent-profile-contact-address"])').get().strip()
+        Address = re.sub(r'\s+', ' ', address)
+        #contact_details = response.xpath('//ul[@class="rng-agent-profile-contact"]/@href')
+        social_media_elements = response.xpath('//li[contains(@class, "social-")]')
+        social_media = {}
+        for element in social_media_elements:
+            key = element.xpath('a/@aria-label').get().strip()
+            value = element.xpath('a/@href').get().strip()
+            social_media[key] = value
+        offices = response.xpath('//div[@class="office"]/ul/li/text()').getall()
+        offices = [eoffice.strip() for office in offices]
+        phone_number = response.xpath('//a[contains(@href, "tel:")]/text()').getall()
+        languages = response.xpath('//div[@class="languages"]/ul/li/text()').getall()
+        languages = [lang.strip() for lang in languages]
+        description = response.xpath('//div[contains(@id, "body-text-")]/text()').get()
+
 
         yield {
             'profile_name': profile_name,
+            'job_title' : job_title,
+            'image_url' : image_url,
+            'address' : Address,
+            'social_media' : social_media,
+            'offices' : offices,
+            'languages' : languages,
             'phone_number': phone_number,
+            'description' : description,
+            
         }
