@@ -5,21 +5,10 @@ import math
 
 class ProfileSpider(scrapy.Spider):
     name = "profile_spider"
-    
-    def __init__(self):
-        self.current_page = 1
-        self.page_size = 10
+    base_url = "https://www.bhhsamb.com/CMS/CmsRoster/RosterSearchResults?layoutID=963&pageSize=10&pageNumber={}&sortBy=random"
+    current_page = 1
 
-    
-    #def start_requests(self):
-       # url = 'https://www.bhhsamb.com/CMS/CmsRoster/RosterSearchResults?layoutID=963&pageSize=10&pageNumber=1&sortBy=random'
-       # yield scrapy.Request(url, callback=self.parse)
-    def start_requests(self):
-   
-        url = f'https://www.bhhsamb.com/CMS/CmsRoster/RosterSearchResults?layoutID=963&pageSize={self.page_size}&pageNumber={self.current_page}&sortBy=random'
-    
-    
-        headers = {
+    headers = {
         #'Accept': 'application/json, text/javascript, /; q=0.01',
         #'Accept-Encoding': 'gzip, deflate, br, zstd',
         #'Accept-Language': 'en-US,en;q=0.9',
@@ -36,26 +25,32 @@ class ProfileSpider(scrapy.Spider):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
             #Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36
             'X-Requested-With': 'XMLHttpRequest'
+    }
 
-        }
+    
+    #def start_requests(self):
+       # url = 'https://www.bhhsamb.com/CMS/CmsRoster/RosterSearchResults?layoutID=963&pageSize=10&pageNumber=1&sortBy=random'
+       # yield scrapy.Request(url, callback=self.parse)
+    def start_requests(self):
+        url = self.base_url.format(self.current_page)
+        yield scrapy.Request(url=url, headers=self.headers, callback=self.parse)
 
-        yield scrapy.Request(url, headers=headers, callback=self.parse)
+        #yield scrapy.Request(url, headers=headers, callback=self.parse)
         
-    def parse(self, response):
-        #print(response.json()) 
-        print(type(response.json()))         #converting to pure json byb removing the ///rn
+    def parse(self, response): 
+        #converting to pure json byb removing the ///rn
         response_dict = json.loads(response.json()) #response in dictionary form have doubt response.json and response_dict are same
         #print(response_dict)
-        print(type(response_dict))          #<class 'dict'>
+        #<class 'dict'>
         html_content = response_dict.get('Html')
         total_count = response_dict.get('TotalCount')
         print(total_count)
-        print(html_content)
+        #print(html_content)
         
         
         selector = scrapy.Selector(text=html_content)
         print(type(selector))
-        print(selector)
+        #print(selector)
         #type of selector
         # Extract all profile links
         profile_links = selector.xpath('//a[contains(@class, "site-roster-card-image-link")]/@href').getall()
@@ -67,13 +62,16 @@ class ProfileSpider(scrapy.Spider):
             full_url = 'https://www.bhhsamb.com' + link  # Create the full URL 
             yield scrapy.Request(full_url, callback=self.parse_profile)
 
-        no_pages = math.ceil(total_count / self.page_size)
-        print(self.page_size)
+        no_pages = math.ceil(total_count / 10)
+        no_pages = 5
+        #print(self.page_size)
         print(no_pages)
         if self.current_page <= no_pages:   
-            self.current_page += 1           #need to increment the  current page
-            next_url = f'https://www.bhhsamb.com/CMS/CmsRoster/RosterSearchResults?layoutID=963&pageSize={self.page_size}&pageNumber={self.current_page}&sortBy=random'
-            yield scrapy.Request(next_url, callback=self.parse)        
+            self.current_page +=1
+            next_url = self.base_url.format(self.current_page)
+            print('aaaaaaaaaa')
+            print(next_url)
+            yield scrapy.Request(url=next_url, callback=self.parse,headers=self.headers)       
           
     
     def parse_profile(self, response):
@@ -102,7 +100,7 @@ class ProfileSpider(scrapy.Spider):
             'profile_name': profile_name,
             'job_title' : job_title,
             'image_url' : image_url,
-            'address' : Address,
+            'address' : Address,                # give name with specififed type
             'social_media' : social_media,
             'offices' : offices,
             'languages' : languages,
