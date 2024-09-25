@@ -7,6 +7,7 @@ class ProfileSpider(scrapy.Spider):
     name = "profile_spider"
     base_url = "https://www.bhhsamb.com/CMS/CmsRoster/RosterSearchResults?layoutID=963&pageSize=10&pageNumber={}&sortBy=random"
     current_page = 1
+    
 
     headers = {
         #'Accept': 'application/json, text/javascript, /; q=0.01',
@@ -49,27 +50,25 @@ class ProfileSpider(scrapy.Spider):
         
         
         selector = scrapy.Selector(text=html_content)
-        print(type(selector))
-        #print(selector)
-        #type of selector
         # Extract all profile links
         profile_links = selector.xpath('//a[contains(@class, "site-roster-card-image-link")]/@href').getall()
-        print(profile_links)
-        print(len(profile_links)) #number of links in each page (10)
+        print("number of profile links = ",len(profile_links)) #number of links in each page (10)
         # each profile page
+        numoflinksineachpage = 0
         for link in profile_links:
             print(link)
             full_url = 'https://www.bhhsamb.com' + link  # Create the full URL 
             yield scrapy.Request(full_url, callback=self.parse_profile)
+            numoflinksineachpage +=1
+        print("number of profile in this page = ",numoflinksineachpage)
 
         no_pages = math.ceil(total_count / 10)
-        no_pages = 5
-        #print(self.page_size)
-        print(no_pages)
+        #no_pages = 5
         if self.current_page <= no_pages:   
             self.current_page +=1
             next_url = self.base_url.format(self.current_page)
             print('aaaaaaaaaa')
+            print("current page is  "+ str(self.current_page))
             print(next_url)
             yield scrapy.Request(url=next_url, callback=self.parse,headers=self.headers)       
           
@@ -89,7 +88,7 @@ class ProfileSpider(scrapy.Spider):
             value = element.xpath('a/@href').get().strip()
             social_media[key] = value
         offices = response.xpath('//div[@class="office"]/ul/li/text()').getall()
-        offices = [eoffice.strip() for office in offices]
+        offices = [office.strip() for office in offices]
         phone_number = response.xpath('//a[contains(@href, "tel:")]/text()').getall()
         languages = response.xpath('//div[@class="languages"]/ul/li/text()').getall()
         languages = [lang.strip() for lang in languages]
