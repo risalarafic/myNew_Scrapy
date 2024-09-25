@@ -5,8 +5,9 @@ import math
 
 class ProfileSpider(scrapy.Spider):
     name = "profile_spider"
-    base_url = "https://www.bhhsamb.com/CMS/CmsRoster/RosterSearchResults?layoutID=963&pageSize=10&pageNumber={}&sortBy=random"
+    base_url = "https://www.bhhsamb.com/CMS/CmsRoster/RosterSearchResults?layoutID=963&pageSize=40&pageNumber={}&sortBy=random"
     current_page = 1
+    profiles = 0
     
 
     headers = {
@@ -28,82 +29,76 @@ class ProfileSpider(scrapy.Spider):
             'X-Requested-With': 'XMLHttpRequest'
     }
 
-    
-    #def start_requests(self):
-       # url = 'https://www.bhhsamb.com/CMS/CmsRoster/RosterSearchResults?layoutID=963&pageSize=10&pageNumber=1&sortBy=random'
-       # yield scrapy.Request(url, callback=self.parse)
     def start_requests(self):
         url = self.base_url.format(self.current_page)
         yield scrapy.Request(url=url, headers=self.headers, callback=self.parse)
 
-        #yield scrapy.Request(url, headers=headers, callback=self.parse)
-        
     def parse(self, response): 
-        #converting to pure json byb removing the ///rn
+        #converting to pure json by removing the ///rn
         response_dict = json.loads(response.json()) #response in dictionary form have doubt response.json and response_dict are same
-        #print(response_dict)
-        #<class 'dict'>
         html_content = response_dict.get('Html')
         total_count = response_dict.get('TotalCount')
         print(total_count)
-        #print(html_content)
-        
-        
         selector = scrapy.Selector(text=html_content)
         # Extract all profile links
         profile_links = selector.xpath('//a[contains(@class, "site-roster-card-image-link")]/@href').getall()
-        print("number of profile links = ",len(profile_links)) #number of links in each page (10)
-        # each profile page
         numoflinksineachpage = 0
         for link in profile_links:
             print(link)
             full_url = 'https://www.bhhsamb.com' + link  # Create the full URL 
             yield scrapy.Request(full_url, callback=self.parse_profile)
             numoflinksineachpage +=1
-        print("number of profile in this page = ",numoflinksineachpage)
 
-        no_pages = math.ceil(total_count / 10)
-        #no_pages = 5
+        if(numoflinksineachpage != 10 ):
+            print("not 10")
+
+        print("number of profile in this page = ",numoflinksineachpage)
+        no_pages = math.ceil(total_count / 40)
         if self.current_page <= no_pages:   
             self.current_page +=1
             next_url = self.base_url.format(self.current_page)
             print('aaaaaaaaaa')
             print("current page is  "+ str(self.current_page))
             print(next_url)
-            yield scrapy.Request(url=next_url, callback=self.parse,headers=self.headers)       
-          
-    
+            yield scrapy.Request(url=next_url, callback=self.parse,headers=self.headers) 
+                 
     def parse_profile(self, response):
-       
+        self.profiles +=1
+        print("no of calls to parse",self.profiles)
         profile_name = response.xpath('//p[@class="rng-agent-profile-contact-name"]/text()').get().strip()
         job_title = response.xpath('//span[@class="rng-agent-profile-contact-title"]/text()').get()
         image_url = response.xpath('//img[@class="rng-agent-profile-photo"]/@src').get()
         address = response.xpath('string(//li[@class="rng-agent-profile-contact-address"])').get().strip()
         Address = re.sub(r'\s+', ' ', address)
-        #contact_details = response.xpath('//ul[@class="rng-agent-profile-contact"]/@href')
+        tel = response.xpath('//li[@class="rng-agent-profile-contact-phone"]/a/text()').get()
+        contact_dict = {
+            "office" : "null",
+            "Cell" : tel,
+            "Fax" : "null"
+        }
         social_media_elements = response.xpath('//li[contains(@class, "social-")]')
-        social_media = {}
+        social_media_dict = {}
         for element in social_media_elements:
             key = element.xpath('a/@aria-label').get().strip()
             value = element.xpath('a/@href').get().strip()
-            social_media[key] = value
+            social_media_dict[key] = value
         offices = response.xpath('//div[@class="office"]/ul/li/text()').getall()
-        offices = [office.strip() for office in offices]
-        phone_number = response.xpath('//a[contains(@href, "tel:")]/text()').getall()
+        offices_list = [office.strip() for office in offices]
         languages = response.xpath('//div[@class="languages"]/ul/li/text()').getall()
-        languages = [lang.strip() for lang in languages]
+        languages_list = [lang.strip() for lang in languages]
         description = response.xpath('//div[contains(@id, "body-text-")]/text()').get()
 
-
+        print("no of calls to parse",self.profiles)
         yield {
             'profile_name': profile_name,
             'job_title' : job_title,
             'image_url' : image_url,
-            'address' : Address,                # give name with specififed type
-            'social_media' : social_media,
-            'offices' : offices,
-            'languages' : languages,
-            'phone_number': phone_number,
+            'address' : Address,   
+            'Contact_details' : contact_dict,       
+            'social_media' : social_media_dict,
+            'offices' : offices_list,
+            'languages' : languages_list,
             'description' : description,
             
         }
+         
