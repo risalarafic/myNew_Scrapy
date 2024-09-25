@@ -21,7 +21,7 @@ class ProfileSpider(scrapy.Spider):
             'Sec-CH-UA': '"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"',
             'Sec-CH-UA-Mobile': '?0',
             'Sec-CH-UA-Platform': '"macOS"',
-            'Sec-Fetch-Dest': 'empty',
+            #'Sec-Fetch-Dest': 'empty',
         #'Sec-Fetch-Mode': 'cors',
         #'Sec-Fetch-Site': 'same-origin',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
@@ -55,6 +55,7 @@ class ProfileSpider(scrapy.Spider):
 
         print("number of profile in this page = ",numoflinksineachpage)
         no_pages = math.ceil(total_count / 40)
+        no_pages = 3
         
         if self.current_page <= no_pages:   
             self.current_page +=1
@@ -77,7 +78,7 @@ class ProfileSpider(scrapy.Spider):
             "Cell" : tel,
             "Fax" : "null"
         }
-        
+
         social_media_elements = response.xpath('//li[contains(@class, "social-")]')
         social_media_dict = {}
         for element in social_media_elements:
