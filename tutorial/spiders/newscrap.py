@@ -39,9 +39,10 @@ class ProfileSpider(scrapy.Spider):
         html_content = response_dict.get('Html')
         total_count = response_dict.get('TotalCount')
         print(total_count)
+
         selector = scrapy.Selector(text=html_content)
-        # Extract all profile links
-        profile_links = selector.xpath('//a[contains(@class, "site-roster-card-image-link")]/@href').getall()
+        profile_links = selector.xpath('//a[contains(@class, "site-roster-card-image-link")]/@href').getall()   # Extract all profile links
+
         numoflinksineachpage = 0
         for link in profile_links:
             print(link)
@@ -49,46 +50,48 @@ class ProfileSpider(scrapy.Spider):
             yield scrapy.Request(full_url, callback=self.parse_profile)
             numoflinksineachpage +=1
 
-        if(numoflinksineachpage != 10 ):
-            print("not 10")
+        if(numoflinksineachpage != 40 ):
+            print("not 40")
 
         print("number of profile in this page = ",numoflinksineachpage)
         no_pages = math.ceil(total_count / 40)
+        
         if self.current_page <= no_pages:   
             self.current_page +=1
             next_url = self.base_url.format(self.current_page)
-            print('aaaaaaaaaa')
             print("current page is  "+ str(self.current_page))
-            print(next_url)
+            print(next_url) #url to next page
             yield scrapy.Request(url=next_url, callback=self.parse,headers=self.headers) 
                  
     def parse_profile(self, response):
         self.profiles +=1
-        print("no of calls to parse",self.profiles)
-        profile_name = response.xpath('//p[@class="rng-agent-profile-contact-name"]/text()').get().strip()
-        job_title = response.xpath('//span[@class="rng-agent-profile-contact-title"]/text()').get()
-        image_url = response.xpath('//img[@class="rng-agent-profile-photo"]/@src').get()
+        print("no of calls to parse",self.profiles)  #calling parsse_profile function
+        profile_name = response.xpath('//p[@class="rng-agent-profile-contact-name"]/text()').get().strip()          #name
+        job_title = response.xpath('//span[@class="rng-agent-profile-contact-title"]/text()').get()                 #title
+        image_url = response.xpath('//img[@class="rng-agent-profile-photo"]/@src').get()                            #image url
         address = response.xpath('string(//li[@class="rng-agent-profile-contact-address"])').get().strip()
-        Address = re.sub(r'\s+', ' ', address)
+        Address = re.sub(r'\s+', ' ', address)                                                                      #Address
         tel = response.xpath('//li[@class="rng-agent-profile-contact-phone"]/a/text()').get()
-        contact_dict = {
+        contact_dict = {                                                                                            #dictionary of contact details
             "office" : "null",
             "Cell" : tel,
             "Fax" : "null"
         }
+        
         social_media_elements = response.xpath('//li[contains(@class, "social-")]')
         social_media_dict = {}
         for element in social_media_elements:
             key = element.xpath('a/@aria-label').get().strip()
             value = element.xpath('a/@href').get().strip()
-            social_media_dict[key] = value
-        offices = response.xpath('//div[@class="office"]/ul/li/text()').getall()
-        offices_list = [office.strip() for office in offices]
-        languages = response.xpath('//div[@class="languages"]/ul/li/text()').getall()
-        languages_list = [lang.strip() for lang in languages]
-        description = response.xpath('//div[contains(@id, "body-text-")]/text()').get()
+            social_media_dict[key] = value                                                     # dictionary of social acounts
 
-        print("no of calls to parse",self.profiles)
+        offices = response.xpath('//div[@class="office"]/ul/li/text()').getall()
+        offices_list = [office.strip() for office in offices]                                  #list of offices
+        languages = response.xpath('//div[@class="languages"]/ul/li/text()').getall()
+        languages_list = [lang.strip() for lang in languages]                                  #list of languages
+        description = response.xpath('//div[contains(@id, "body-text-")]/text()').get()        #description
+
+        print("no of calls to parse",self.profiles)               #calling parsse_profile function
         yield {
             'profile_name': profile_name,
             'job_title' : job_title,
